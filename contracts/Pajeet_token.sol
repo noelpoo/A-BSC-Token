@@ -1,10 +1,39 @@
 pragma solidity ^0.5.13;
 
-contract Mapping{
+contract PajeetToken{
+
+    string public name = "Pajeet Token";
+    string public symbol = "APNN";
+    uint256 public totalSupply = 1000000000000000000000000; 
+    uint8 public decimals = 18;
+    
+    struct Transaction {
+        uint256 amount;
+        uint256 timestamp;
+    }
+    
+    struct Inflow {
+        uint256 amount;
+        uint256 timestamp;
+    }
+    
+    struct Outflow {
+        uint256 amount;
+        uint256 timestamp;
+    }
+    
+    struct Balance {
+        uint256 totalBalance;
+        uint256 inflowCount;
+        uint256 outflowCount;
+        mapping(uint => Inflow) inflows;
+        mapping(uint => Outflow) outflows;
+    }
+    
     mapping (uint => bool) public boolMapping;
     mapping (uint8 => address) public Address;
     mapping (address => bool) public whitelistedAddress;
-    mapping (address => uint256) public holders;
+    mapping (address => Balance) public holders;
     
     address owner;
     address contractAddress = address(this);
@@ -34,10 +63,17 @@ contract Mapping{
     }
     
     function addHolder(address _address, uint256 _amount) private {
-        if(holders[_address] > 0){
-            holders[_address] += _amount;
+        if(holders[_address].totalBalance > 0){
+            Inflow memory txn = Inflow(_amount, now);
+            holders[_address].totalBalance += _amount;
+            holders[_address].inflows[holders[_address].inflowCount] = txn;
+            holders[_address].inflowCount ++;
+            
         } else {
-            holders[_address] = _amount;
+            Inflow memory txn = Inflow(_amount, now);
+            holders[_address].totalBalance = _amount;
+            holders[_address].inflows[holders[_address].inflowCount] = txn;
+            holders[_address].inflowCount ++;
         }
     }
     
@@ -58,8 +94,39 @@ contract Mapping{
     
     function getUserBalance() public view returns (uint256){
         require(!contractPaused);
-        return holders[msg.sender];
+        return holders[msg.sender].totalBalance;
     }
+    
+    
+    // Getter function for Balance sub-structs
+    
+    function getUserInflowsTime(uint _index) public view returns (uint256){
+        require(!contractPaused);
+        require(_index < holders[msg.sender].inflowCount, "Index out of range");
+        return holders[msg.sender].inflows[_index].timestamp;
+    }
+    
+    function getUserInflowsAmount(uint _index) public view returns (uint256){
+        require(!contractPaused);
+        require(_index < holders[msg.sender].inflowCount, "Index out of range");
+        return holders[msg.sender].inflows[_index].amount;
+    }
+    
+    function getUserOutflowsTime(uint _index) public view returns (uint256){
+        require(!contractPaused);
+        require(_index < holders[msg.sender].outflowCount, "Index out of range");
+        return holders[msg.sender].outflows[_index].timestamp;
+    }
+    
+    function getUserOutflowAmount(uint _index) public view returns (uint256){
+        require(!contractPaused);
+        require(_index < holders[msg.sender].outflowCount, "Index out of range");
+        return holders[msg.sender].outflows[_index].amount;
+    }
+    
+    
+    
+    
     
     function receiveFunds() public payable{
         require(!contractPaused);
@@ -83,28 +150,33 @@ contract Mapping{
     }
     
     function userWithdraw(uint _amount) public {
-        uint256 amount = _amount * 10 ** 18;
+        uint256 amount = _amount * 10 ** 18; // conversion from wei to ether
         address payable _to = msg.sender;
         require(!contractPaused);
-        require(holders[_to] >= amount, "Cannot withdraw more than its deposit");
+        require(holders[_to].totalBalance >= amount, "Cannot withdraw more than its deposit");
         require(amount > 0);
         require(amount <= getContractBalance());
-        holders[_to] -= amount;
+        holders[_to].totalBalance -= amount;
+        Outflow memory out = Outflow(amount, now);
+        holders[_to].outflows[holders[_to].outflowCount] = out;
+        holders[_to].outflowCount++;
         _to.transfer(amount);
     }
     
     function userWithdrawAll() public {
         address payable _to = msg.sender;
-        uint256 holderBalance = holders[_to];
+        uint256 holderBalance = holders[_to].totalBalance;
         require(holderBalance > 0, "Holder address has balance of zero");
         require(_to != Address[0], "Dead address cannot withdraw balance");
         require(_to != Address[1], "Contract address cannot withdraw balance");
+        
         _to.transfer(holderBalance);
+        holders[_to].totalBalance = 0;
+        Outflow memory outflow = Outflow(holderBalance, now);
+        
+        holders[_to].outflows[holders[_to].outflowCount] = outflow;
+        holders[_to].outflowCount++;
     }
-    
-
-    
-    
     
     
 }
