@@ -1,6 +1,6 @@
 pragma solidity ^0.5.13;
 
-contract PajeetToken{
+contract Mapping{
     
     struct Transaction {
         uint256 amount;
@@ -125,6 +125,7 @@ contract PajeetToken{
     
     function receiveFunds() public payable{
         require(!contractPaused);
+        assert(holders[msg.sender].totalBalance + msg.value >= holders[msg.sender].totalBalance);
         require(msg.sender != contractAddress);
         require(msg.value > 0, "Amount must be greater than 0");
         latestTxn = msg.value;
@@ -135,6 +136,8 @@ contract PajeetToken{
     function ownerWithdrawAllFunds() public {
         require(!contractPaused);
         require(msg.sender == owner, "Only contract owner can withdraw all funds");
+        require(holders[msg.sender].totalBalance != 0);
+        assert(holders[msg.sender].totalBalance >= 0);
         address payable _to = msg.sender;
         _to.transfer(getContractBalance());
     }
@@ -149,6 +152,7 @@ contract PajeetToken{
         address payable _to = msg.sender;
         require(!contractPaused);
         require(holders[_to].totalBalance >= amount, "Cannot withdraw more than its deposit");
+        assert(holders[_to].totalBalance >= holders[_to].totalBalance - amount);
         require(amount > 0);
         require(amount <= getContractBalance());
         holders[_to].totalBalance -= amount;
@@ -172,16 +176,6 @@ contract PajeetToken{
         holders[_to].outflows[holders[_to].outflowCount] = outflow;
         holders[_to].outflowCount++;
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     
 }
 
